@@ -12,13 +12,15 @@
 
 # -- Load Packages for this script
 import pandas as pd
-import pandas as np
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 
 # -- Load other scripts
-from data import fees_schedule, order_book
+from data import fees_schedule, order_book, get_timeseries, graficar
 
 # Small test
-exchanges = ["bitfinex", "kraken"]
+exchanges = ["bitfinex", "kraken", 'ftx', 'currencycom', 'coinmate']
 symbol = 'BTC/EUR'
 expected_volume = 0
 
@@ -26,13 +28,44 @@ expected_volume = 0
 # fees = fees_schedule(exchange='kraken', symbol=symbol, expected_volume=expected_volume)
 
 # Massive download of OrderBook data
-# data = order_book(symbol=symbol, exchanges=exchanges, output='inplace', stop=None, verbose=True)
+#order_book(symbol=symbol, exchanges=exchanges, output='JSON', stop=None, verbose=True)
+datos = order_book(symbol=symbol, exchanges=exchanges, output='inplace', stop=None, verbose=True)
+pd.DataFrame(datos).to_json('files/Diccionario_series_de_tiempo_BTC_EUR.json')
+print(datos)
 
-# Test
-# data['kraken'][list(data['kraken'].keys())[2]]
+series = get_timeseries(datos, exchanges)
+series.to_excel('files/Dataframe_series_de_tiempo_BTC_EUR.xlsx')
+print(series)
+
+graficar(series, exchanges, symbol)
+
+# Cambiando el activo
+symbol = 'SOL/USD'
+datos = order_book(symbol=symbol, exchanges=exchanges, output='inplace', stop=None, verbose=True)
+pd.DataFrame(datos).to_json('files/Diccionario_series_de_tiempo_SOL_USD.json')
+print(datos)
+
+series = get_timeseries(datos, exchanges)
+series.to_excel('files/Dataframe_series_de_tiempo_SOL_USD.xlsx')
+print(series)
+
+graficar(series, exchanges, symbol)
+
+# Cambiando el activo
+symbol = 'ETH/USD'
+datos = order_book(symbol=symbol, exchanges=exchanges, output='inplace', stop=None, verbose=True)
+pd.DataFrame(datos).to_json('files/Diccionario_series_de_tiempo_ETH_USD.json')
+print(datos)
+
+series = get_timeseries(datos, exchanges)
+series.to_excel('files/Dataframe_series_de_tiempo_ETH_USD.xlsx')
+print(series)
+
+graficar(series, exchanges, symbol)
 
 # Read previously downloaded file
-ob_data = pd.read_json('files/orderbooks_06jun2021.json', orient='values', typ='series')
+#ob_data = pd.read_json('files/orderbooks_06jun2021.json', orient='values', typ='series')
+#print(pd.DataFrame(ob_data['kraken']['2021-07-06T19:02:31:692Z']))
 
 # -- Simulation of trades (Pending)
 

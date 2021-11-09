@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import time
 import json
+import plotly.graph_objects as go
 
 # -- Cryptocurrency data and trading API
 import ccxt
@@ -155,7 +156,7 @@ def order_book(symbol, exchanges, execution='async', stop=None, output=None, ver
     """
     
     # Store data for every exchange in the list
-    r_data = {'bitfinex': {}, 'kraken': {}}
+    r_data = {'bitfinex': {}, 'kraken': {}, 'ftx': {}, 'currencycom': {}, 'coinmate': {}}
 
     # ----------------------------------------------------------------------------- ASYNCRONOUS REQUESTS -- # 
     async def async_client(exchange, symbol):
@@ -198,7 +199,7 @@ def order_book(symbol, exchanges, execution='async', stop=None, output=None, ver
                 # Final data format for the results
                 r_data[client.id].update({datetime: pd.DataFrame({'ask_size': ask_size, 'ask': ask_price,
                                                                   'bid': bid_price, 'bid_size': bid_size,
-                                                                  'spread': spread}) })
+                                                                  'spread': spread})})
                 # End time
                 time_2 = time.time()
                 time_f = round(time_2 - time_1, 4)
@@ -238,7 +239,7 @@ def order_book(symbol, exchanges, execution='async', stop=None, output=None, ver
         json_object = pd.DataFrame(r_data).to_json()
         
         # Writing to sample.json
-        with open("files/orderbooks_06jun2021.json", "w") as outfile:
+        with open("files/orderbooks_lab_4.json", "w") as outfile:
             outfile.write(json_object)
 
     # Just return the DataFrame
@@ -279,3 +280,54 @@ def continuous_ob(orderbooks):
     # If for an exchange the timestamp does not contain info, use the previous timestamp that does
    
     return 1
+
+def get_timeseries(data, exchanges):
+    resultado = pd.DataFrame(columns=['exchange', 'timeStamp', 'level', 'asks_vol', 'bids_vol',
+                                      'total_vol', 'mid_price', 'VWAP'])
+
+    for j in exchanges:
+        final = pd.DataFrame(index=data[j].keys(), columns=['level', 'bids_vol', 'asks_vol', 'total_vol',
+                                                            'ask_aw', 'bid_aw', 'VWAP', 'mid_price'])
+        for i in data[j].keys():
+            datos = pd.DataFrame(data[j][i])
+            final['level'][i] = len(datos)
+            if len(datos) == 0:
+                final['bids_vol'][i] = 0
+                final['asks_vol'][i] = 0
+                final['total_vol'][i] = 0
+                final['ask_aw'][i] = 0
+                final['bid_aw'][i] = 0
+                final['VWAP'][i] = 0
+                final['mid_price'][i] = 0
+            else:
+                final['bids_vol'][i] = np.sum(datos['bid_size'])
+                final['asks_vol'][i] = np.sum(datos['ask_size'])
+                final['total_vol'][i] = final['bids_vol'][i] + final['asks_vol'][i]
+                final['ask_aw'][i] = (datos.ask * datos.ask_size).sum() / datos.ask_size.sum()
+                final['bid_aw'][i] = (datos.bid * datos.bid_size).sum() / datos.bid_size.sum()
+                final['VWAP'][i] = (final['ask_aw'][i] + final['bid_aw'][i]) / 2
+                final['mid_price'][i] = (datos['ask'][0] + datos['bid'][0]) / 2
+        final.index = pd.to_datetime(final.index).strftime('%Y-%m-%d %H:%M:%S')
+        final.reset_index(inplace=True)
+        final.rename(columns={'index': 'timeStamp'}, inplace=True)
+        final['exchange'] = j
+        final = final[['exchange', 'timeStamp', 'level', 'asks_vol', 'bids_vol', 'total_vol', 'mid_price', 'VWAP']]
+        resultado = resultado.append(final)
+    return resultado
+
+
+def graficar(data, exchanges, symbol):
+    for col in data.columns[2:]:
+        fig = go.Figure()
+        fig.add_scatter(x=data[data['exchange']==exchanges[0]].timeStamp,
+                        y=data[data['exchange']==exchanges[0]][col], name='bitfinex_'+symbol, line=dict(shape='linear'))
+        fig.add_scatter(x=data[data['exchange']==exchanges[1]].timeStamp,
+                        y=data[data['exchange']==exchanges[1]][col], name='kraken_'+symbol, line=dict(shape='linear'))
+        fig.add_scatter(x=data[data['exchange']==exchanges[2]].timeStamp,
+                        y=data[data['exchange']==exchanges[2]][col], name='ftx_'+symbol, line=dict(shape='linear'))
+        fig.add_scatter(x=data[data['exchange']==exchanges[3]].timeStamp,
+                        y=data[data['exchange']==exchanges[3]][col], name='currencycom_'+symbol, line=dict(shape='linear'))
+        fig.add_scatter(x=data[data['exchange']==exchanges[4]].timeStamp,
+                        y=data[data['exchange']==exchanges[4]][col], name='coinmate_'+symbol, line=dict(shape='linear'))
+        fig.update_layout(title=col, xaxis_title='Date', yaxis_title=col, legend_title="Exchange")
+        fig.show()
